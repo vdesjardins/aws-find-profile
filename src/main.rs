@@ -12,7 +12,6 @@ struct Account {
 }
 
 const SSO_ACCOUNT_ID: &str = "sso_account_id";
-const CREDENTIAL_PROCESS: &str = "credential_process";
 
 fn main() -> Result<(), Box<dyn Error>> {
     let account = Account::parse();
@@ -34,11 +33,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut config = Ini::new_from_defaults(config_default.clone());
     let config = config.load(&*config_path)?;
 
-    let profile_name = find_profile_by_account_id(&account.id, &config);
-    let proc_profile = find_process_profile(profile_name, &config);
+    let profile_names = find_profile_by_account_id(&account.id, &config);
 
-    println!("name\t{}", profile_name);
-    println!("process\t{}", proc_profile);
+    profile_names.iter().for_each(|p| {
+        println!("{}", p);
+    });
 
     Ok(())
 }
@@ -46,27 +45,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn find_profile_by_account_id<'a>(
     account_id: &'a str,
     config: &'a HashMap<String, HashMap<String, Option<String>>>,
-) -> &'a str {
-    for (section, values) in config {
-        if let Some(Some(id)) = values.get(SSO_ACCOUNT_ID) {
-            if id == &account_id {
-                return section.strip_prefix("profile ").unwrap();
+) -> Vec<&'a str> {
+    config
+        .iter()
+        .filter_map(|(k, v)| {
+            if let Some(Some(id)) = v.get(SSO_ACCOUNT_ID) {
+                if id == &account_id {
+                    return k.strip_prefix("profile ");
+                }
             }
-        }
-    }
-    ""
-}
-
-fn find_process_profile<'a>(
-    profile: &'a str,
-    config: &'a HashMap<String, HashMap<String, Option<String>>>,
-) -> &'a str {
-    for (section, values) in config {
-        if let Some(Some(cmd)) = values.get(CREDENTIAL_PROCESS) {
-            if cmd.contains(profile) {
-                return section.strip_prefix("profile ").unwrap();
-            }
-        }
-    }
-    ""
+            None
+        })
+        .collect()
 }
